@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PortOps Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="appRoot" class="app-shell">
+    <section id="loginScreen" class="auth-screen">
+      <div class="auth-card">
+        <div class="brand-lockup">
+          <span class="eyebrow">PortOps Control</span>
+          <h1>Plataforma de operacao logistica</h1>
+          <p>Um unico sistema para condutor e supervisao, integrado ao simulador operacional do porto.</p>
+        </div>
+        <form id="loginForm" class="auth-form">
+          <label for="loginIdentifier">Usuario ou e-mail</label>
+          <input id="loginIdentifier" name="identifier" type="email" placeholder="condutor@demo.com" required />
+          <label for="loginPassword">Senha</label>
+          <input id="loginPassword" name="password" type="password" placeholder="demo123" required />
+          <button type="submit">Entrar</button>
+          <p id="loginError" class="login-error"></p>
+        </form>
+        <div class="auth-hints">
+          <div>
+            <strong>Condutor</strong>
+            <span>condutor@demo.com / demo123</span>
+          </div>
+          <div>
+            <strong>Supervisor</strong>
+            <span>supervisor@demo.com / demo123</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="appLayout" class="dashboard-shell hidden">
+      <header class="topbar">
+        <div class="topbar-title">
+          <span class="eyebrow">PortOps Control</span>
+          <h2 id="viewTitle">Dashboard</h2>
+        </div>
+        <div class="topbar-actions">
+          <div id="userBadge" class="user-badge"></div>
+          <button id="logoutBtn" class="ghost">Logout</button>
+        </div>
+      </header>
+
+      <main class="dashboard-content">
+        <section id="driverView" class="driver-view hidden">
+          <div class="driver-hero">
+            <div class="driver-main-card">
+              <div class="driver-instruction-meta">
+                <span class="eyebrow">Instrucao atual</span>
+                <div class="driver-vehicle-bar">
+                  <button id="driverPrevVehicleBtn" class="ghost driver-switch-btn" type="button">Anterior</button>
+                  <span id="driverVehicleLabel" class="vehicle-chip"></span>
+                  <select id="driverVehicleSelect" class="driver-vehicle-select"></select>
+                  <button id="driverNextVehicleBtn" class="ghost driver-switch-btn" type="button">Proximo</button>
+                </div>
+              </div>
+              <div class="driver-guidance">
+                <div id="driverArrow" class="driver-arrow direction-straight">
+                  <span class="arrow-stem"></span>
+                  <span class="arrow-head"></span>
+                </div>
+                <div class="driver-copy">
+                  <h3 id="driverInstruction">Aguardando proxima rota</h3>
+                  <p id="driverDistance">0 m ate a proxima acao</p>
+                </div>
+              </div>
+              <div class="driver-kpis">
+                <div class="metric-card compact"><span class="label">Velocidade</span><span id="driverSpeed" class="value">0 km/h</span></div>
+                <div class="metric-card compact"><span class="label">Status</span><span id="driverStatus" class="value">idle</span></div>
+                <div class="metric-card compact"><span class="label">Destino</span><span id="driverDestination" class="value">-</span></div>
+                <div class="metric-card compact"><span class="label">ETA</span><span id="driverEta" class="value">-</span></div>
+              </div>
+              <div class="driver-footer">
+                <span id="driverFlowBadge" class="flow-badge"></span>
+                <div id="driverAlerts" class="driver-alerts"></div>
+              </div>
+            </div>
+          </div>
+          <div class="driver-map-card">
+            <div class="panel-header">
+              <h3>Rota ativa</h3>
+              <span class="panel-note">Visual simplificado</span>
+            </div>
+            <div id="driverMap" class="map-frame"></div>
+          </div>
+        </section>
+
+        <section id="supervisorView" class="supervisor-view hidden">
+          <aside class="supervisor-sidebar">
+            <section class="panel panel-tight">
+              <div class="panel-header">
+                <h3>Operacao</h3>
+                <span id="supervisorFlowBadge" class="flow-badge"></span>
+              </div>
+              <div id="metricsGrid" class="metrics-grid metrics-grid-wide"></div>
+              <div class="control-grid">
+                <button id="startBtn">Iniciar</button>
+                <button id="pauseBtn">Pausar</button>
+                <button id="stepBtn">Avancar</button>
+                <button id="resetBtn" class="ghost">Resetar</button>
+              </div>
+              <div class="runtime-grid">
+                <label class="toggle-chip">
+                  <input type="checkbox" id="toggleTicks">
+                  <span class="toggle-control"></span>
+                  <span>Habilitar ticks</span>
+                </label>
+                <select id="tickSecondsSelect">
+                  <option value="10">Ticks de 10s</option>
+                  <option value="20">Ticks de 20s</option>
+                  <option value="30">Ticks de 30s</option>
+                </select>
+                <select id="strategySelect">
+                  <option value="rule">Regra deterministica</option>
+                  <option value="ml">IA / ML</option>
+                </select>
+                <div id="strategyHint" class="runtime-hint">Estrategia atual da alocacao.</div>
+              </div>
+            </section>
+
+            <section class="panel panel-tight">
+              <div class="panel-header">
+                <h3>Filtros</h3>
+                <span class="panel-note">Monitoramento</span>
+              </div>
+              <div class="supervisor-tabs">
+                <div class="tab-strip" role="tablist" aria-label="Navegacao do painel lateral">
+                  <button class="tab-button active" type="button" role="tab" aria-selected="true" data-tab="filters">Filtros</button>
+                  <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="assets">Ativos</button>
+                  <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="detail">Detalhe</button>
+                  <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="alerts">Alertas</button>
+                </div>
+
+                <div class="tab-panels">
+                  <section class="tab-panel active" data-tab-panel="filters">
+                    <div class="filter-stack">
+                      <div class="filter-grid">
+                        <input id="assetSearch" type="text" placeholder="Buscar por ID" />
+                        <select id="vehicleTypeFilter">
+                          <option value="all">Todos os tipos</option>
+                          <option value="truck">Caminhao</option>
+                          <option value="utility">Utilitario</option>
+                          <option value="support">Apoio</option>
+                          <option value="pickup">Pickup</option>
+                          <option value="crane">Guindaste</option>
+                          <option value="train">Trem</option>
+                        </select>
+                        <select id="statusFilter">
+                          <option value="all">Todos os status</option>
+                          <option value="idle">Idle</option>
+                          <option value="en_route">Em rota</option>
+                          <option value="assisting">Atendimento</option>
+                          <option value="returning">Retorno</option>
+                        </select>
+                      </div>
+                      <div class="toggle-row">
+                        <label class="toggle-chip">
+                          <input type="checkbox" id="toggleZones">
+                          <span class="toggle-control"></span>
+                          <span>Zonas operacionais</span>
+                        </label>
+                        <label class="toggle-chip">
+                          <input type="checkbox" id="toggleRoutes" checked>
+                          <span class="toggle-control"></span>
+                          <span>Rotas ativas</span>
+                        </label>
+                        <label class="toggle-chip">
+                          <input type="checkbox" id="toggleTeams" checked>
+                          <span class="toggle-control"></span>
+                          <span>Equipes</span>
+                        </label>
+                        <label class="toggle-chip">
+                          <input type="checkbox" id="toggleCritical" checked>
+                          <span class="toggle-control"></span>
+                          <span>Areas criticas</span>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="tab-panel" data-tab-panel="assets">
+                    <div class="panel-header panel-header-inline">
+                      <h3>Ativos</h3>
+                      <span class="panel-note">Clique para detalhar</span>
+                    </div>
+                    <div id="assetList" class="asset-list"></div>
+                  </section>
+
+                  <section class="tab-panel" data-tab-panel="detail">
+                    <div class="panel-header panel-header-inline">
+                      <h3>Detalhe</h3>
+                    </div>
+                    <div id="assetDetail" class="detail-panel">Selecione um ativo no mapa ou na lista.</div>
+                  </section>
+
+                  <section class="tab-panel" data-tab-panel="alerts">
+                    <div class="panel-header panel-header-inline">
+                      <h3>Alertas</h3>
+                    </div>
+                    <div id="alertsList" class="event-list"></div>
+                  </section>
+                </div>
+              </div>
+            </section>
+          </aside>
+
+          <section class="supervisor-main">
+            <div class="supervisor-map-shell">
+              <div id="supervisorMap" class="map-frame"></div>
+              <div class="legend">
+                <span><i class="truck"></i> Caminhao</span>
+                <span><i class="utility"></i> Utilitario</span>
+                <span><i class="train"></i> Trem</span>
+                <span><i class="crane"></i> Guindaste</span>
+                <span><i class="team"></i> Equipe</span>
+                <span><i class="route"></i> Rota ativa</span>
+                <span><i class="critical"></i> Ponto critico</span>
+                <span><i class="blocked"></i> Bloqueio</span>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
